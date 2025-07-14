@@ -1,4 +1,4 @@
-# 📰 Article - Mạng Xã Hội Chia Sẻ Bài Viết
+# 📰 Article - Mạng Xã Hội Chia Sẻ Bài Viết (Đang phát triển)
 
 **Article** là một ứng dụng mạng xã hội được phát triển bằng ngôn ngữ **Flutter**, cho phép người dùng tạo, chia sẻ và tương tác với các bài viết đa phương tiện như văn bản, hình ảnh và video. Dự án hướng đến việc xây dựng một cộng đồng chia sẻ kiến thức, ý tưởng và trải nghiệm cá nhân một cách trực quan và hiện đại.
 
