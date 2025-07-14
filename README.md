@@ -22,7 +22,7 @@
 | Giao diện      | [Flutter](https://flutter.dev/) |
 | Backend        | Node.js / REST API |
 | Realtime       | WebSocket|
-| Cơ sở dữ liệu  | MongoDB /|
+| Cơ sở dữ liệu  | MongoDB |
 
 ---
 
