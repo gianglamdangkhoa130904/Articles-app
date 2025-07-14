@@ -24,13 +24,3 @@
 | Realtime       | WebSocket|
 | Cơ sở dữ liệu  | MongoDB |
 
----
-
-## 📦 Cài Đặt Dự Án
-
-```bash
-git clone https://github.com/gianglamdangkhoa130904/Articles-app.git
-cd Articles-app
-flutter pub get
-flutter run
-
