@@ -55,6 +55,7 @@ class _CardPostState extends State<CardPost> {
   String handle = "";
   String avatar = '';
   bool istoglingLike = false;
+  double maxHeight = 200;
   
   // Mock data for images
   List<ImageFile> imageUrls = [
@@ -229,7 +230,7 @@ class _CardPostState extends State<CardPost> {
         
         if (dislikeResponse.statusCode == 200) {
           // Cập nhật số lượt like trong bài post
-          final articleUpdateResponse = await http.put(
+          await http.put(
             Uri.parse('https://dhkptsocial.onrender.com/articles/${widget.id}'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'numberOfLike': currentLikes}),
@@ -356,25 +357,25 @@ class _CardPostState extends State<CardPost> {
     }
   }
 
-  void _toggleFollow() {
-    setState(() {
-      isFollowing = !isFollowing;
-    });
-  }
+  // void _toggleFollow() {
+  //   setState(() {
+  //     isFollowing = !isFollowing;
+  //   });
+  // }
 
-  void _previousImage() {
-    setState(() {
-      currentImageIndex = currentImageIndex > 0 
-          ? currentImageIndex - 1 
-          : imageUrls.length - 1;
-    });
-  }
+  // void _previousImage() {
+  //   setState(() {
+  //     currentImageIndex = currentImageIndex > 0 
+  //         ? currentImageIndex - 1 
+  //         : imageUrls.length - 1;
+  //   });
+  // }
 
-  void _nextImage() {
-    setState(() {
-      currentImageIndex = (currentImageIndex + 1) % imageUrls.length;
-    });
-  }
+  // void _nextImage() {
+  //   setState(() {
+  //     currentImageIndex = (currentImageIndex + 1) % imageUrls.length;
+  //   });
+  // }
 
   void _showMoreOptions() {
     showModalBottomSheet(
@@ -497,52 +498,55 @@ class _CardPostState extends State<CardPost> {
             ),
           ),
           
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           
           // Image content with navigation arrows
           if (imageUrls.isNotEmpty)
             CarouselSlider(
               options: CarouselOptions(
-                autoPlay: false,
+                height: maxHeight,
                 enlargeCenterPage: true,
                 viewportFraction: 0.9,
                 enableInfiniteScroll: imageUrls.length > 1,
-                height: 400
+                autoPlay: false,
               ),
               items: imageUrls.map((file) {
                 return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 5),
                   width: double.infinity,
-                  height: 300,
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: file.fileName.contains('.mp4') 
-                      ? VideoPlayerWidget(
-                          videoUrl: file.fileID,
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: file.fileID,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[100],
-                            child: Center(
-                              child: CircularProgressIndicator(color: colorBG, strokeWidth: 2),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[200],
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.broken_image, size: 40, color: Colors.grey[400]),
-                                  SizedBox(height: 4),
-                                  Text('Lỗi tải ảnh', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                ],
+                  child: MeasureSize(
+                    onChange: (size) {
+                      if (size.height > maxHeight) {
+                        setState(() {
+                          maxHeight = size.height;
+                        });
+                      }
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: file.fileName.contains('.mp4')
+                          ? VideoPlayerWidget(videoUrl: file.fileID)
+                          : CachedNetworkImage(
+                              imageUrl: file.fileID,
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colorBG,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image, size: 40, color: Colors.grey[400]),
+                                    const SizedBox(height: 4),
+                                    Text('Lỗi tải ảnh', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                    ),
                   ),
                 );
               }).toList(),
@@ -832,3 +836,44 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 }
+
+class MeasureSize extends StatefulWidget {
+  final Widget child;
+  final void Function(Size size) onChange;
+  const MeasureSize({required this.child, required this.onChange, super.key});
+
+  @override
+  State<MeasureSize> createState() => _MeasureSizeState();
+}
+
+class _MeasureSizeState extends State<MeasureSize> {
+  final GlobalKey _key = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Đợi render xong để đo
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportSize());
+  }
+
+  @override
+  void didUpdateWidget(covariant MeasureSize oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportSize());
+  }
+
+  void _reportSize() {
+    final context = _key.currentContext;
+    if (context == null) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      widget.onChange(box.size);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(key: _key, child: widget.child);
+  }
+}
+

@@ -1,14 +1,14 @@
+import 'dart:convert';
 import 'package:final_project/models/comment_model.dart';
+import 'package:final_project/models/user_model.dart';
 import 'package:flutter/material.dart';
 
 class CommentItem extends StatefulWidget {
   final Comment comment;
-  final String userName;
-  final String userAvatar;
+  final String user;
   const CommentItem({
     super.key,
-    this.userAvatar = 'https://picsum.photos/400/200?random=1',
-    this.userName = "Kenshin", 
+    this.user = "name:Kenshin,...", 
     required this.comment,
   });
   @override
@@ -16,6 +16,16 @@ class CommentItem extends StatefulWidget {
 }
 
 class _CommentItemState extends State<CommentItem> {
+  String userName = "Kenshin";
+  String userAvatar = "https://picsum.photos/400/200?random=1";
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    // User user = User.fromJson(json.decode(widget.user));
+    // userName = user.name;
+    // userAvatar = user.avatar!;
+  }
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -24,7 +34,7 @@ class _CommentItemState extends State<CommentItem> {
           backgroundColor: Colors.grey.shade200,
           child: ClipOval(
             child: Image.network(
-              widget.userAvatar,
+              userAvatar,
               width: 44,
               height: 44,
               fit: BoxFit.cover,
@@ -34,7 +44,7 @@ class _CommentItemState extends State<CommentItem> {
         Column(
           children: [
             Text(
-              widget.userName,
+              userName,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             Container(
