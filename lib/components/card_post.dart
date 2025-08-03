@@ -2,13 +2,15 @@ import 'dart:typed_data';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:final_project/components/post.dart';
 import 'package:final_project/views/comment_page.dart';
+import 'package:final_project/views/infor/other_profile_page.dart';
+import 'package:final_project/views/infor/video_player_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:final_project/default/default.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:video_player/video_player.dart';
+// import 'package:video_player/video_player.dart';
 import '../models/article_model.dart' as article_model;
 
 class CardPost extends StatefulWidget {
@@ -55,6 +57,7 @@ class _CardPostState extends State<CardPost> {
   String handle = "";
   String avatar = '';
   bool istoglingLike = false;
+  String customerId = '';
   
   // Mock data for images
   List<ImageFile> imageUrls = [
@@ -75,6 +78,13 @@ class _CardPostState extends State<CardPost> {
     likeIDState = widget.likeID;
     // Load saved state from cache
     _loadSavedState();
+  }
+  Future<void> _loadCustomerId() async {
+    final prefs = await SharedPreferences.getInstance();
+    customerId = prefs.getString('customerId')!;
+    setState(() {
+      customerId = prefs.getString('customerId')!;
+    });
   }
 
   // Load saved like state from cache
@@ -420,9 +430,9 @@ class _CardPostState extends State<CardPost> {
   Future<List<Uint8List?>> fetchAllImages(List<String> urls) async {
     return Future.wait(urls.map((url) => fetchImageBytes(url)));
   }
-
   @override
   Widget build(BuildContext context) {
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
@@ -441,22 +451,35 @@ class _CardPostState extends State<CardPost> {
                 // Avatar with gradient border
                 Padding(
                   padding: const EdgeInsets.all(2),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [colorBG, Colors.purple.shade300],
+                  child: InkWell(
+                    onTap: () => {
+                      Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OtherProfilePage(
+                          userId: widget.authorID,
+                          loggedInUserId: customerId,
+                        ),
                       ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Colors.grey.shade200,
-                      child: ClipOval(
-                        child: Image.network(
-                          avatar,
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
+                    )
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [colorBG, Colors.purple.shade300],
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Colors.grey.shade200,
+                        child: ClipOval(
+                          child: Image.network(
+                            avatar,
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                     ),
@@ -507,7 +530,7 @@ class _CardPostState extends State<CardPost> {
                 enlargeCenterPage: true,
                 viewportFraction: 0.9,
                 enableInfiniteScroll: imageUrls.length > 1,
-                height: 400
+                height: 200
               ),
               items: imageUrls.map((file) {
                 return Container(
@@ -517,9 +540,8 @@ class _CardPostState extends State<CardPost> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: file.fileName.contains('.mp4') 
-                      ? VideoPlayerWidget(
-                          videoUrl: file.fileID,
-                        )
+                      ? 
+                      VideoPlayerWidget(videoUrl: file.fileID)
                       : CachedNetworkImage(
                           imageUrl: file.fileID,
                           fit: BoxFit.contain,
@@ -697,138 +719,138 @@ class _CardPostState extends State<CardPost> {
 }
 
 // VideoPlayerWidget remains the same
-class VideoPlayerWidget extends StatefulWidget {
-  final String videoUrl;
+// class VideoPlayerWidget extends StatefulWidget {
+//   final String videoUrl;
   
-  const VideoPlayerWidget({Key? key, required this.videoUrl}) : super(key: key);
+//   const VideoPlayerWidget({Key? key, required this.videoUrl}) : super(key: key);
   
-  @override
-  _VideoPlayerWidgetState createState() => _VideoPlayerWidgetState();
-}
+//   @override
+//   _VideoPlayerWidgetState createState() => _VideoPlayerWidgetState();
+// }
 
-class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  late VideoPlayerController _controller;
-  bool _isInitialized = false;
+// class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
+//   late VideoPlayerController _controller;
+//   bool _isInitialized = false;
   
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.network(widget.videoUrl);
-    _controller.initialize().then((_) {
-      setState(() {
-        _isInitialized = true;
-      });
-    });
+//   @override
+//   void initState() {
+//     super.initState();
+//     _controller = VideoPlayerController.network(widget.videoUrl);
+//     _controller.initialize().then((_) {
+//       setState(() {
+//         _isInitialized = true;
+//       });
+//     });
     
-    _controller.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
+//     _controller.addListener(() {
+//       if (mounted) {
+//         setState(() {});
+//       }
+//     });
+//   }
   
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+//   @override
+//   void dispose() {
+//     _controller.dispose();
+//     super.dispose();
+//   }
   
-  @override
-  Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return Container(
-        color: Colors.grey[100],
-        child: Center(
-          child: CircularProgressIndicator(color: colorBG, strokeWidth: 2),
-        ),
-      );
-    }
+//   @override
+//   Widget build(BuildContext context) {
+//     if (!_isInitialized) {
+//       return Container(
+//         color: Colors.grey[100],
+//         child: Center(
+//           child: CircularProgressIndicator(color: colorBG, strokeWidth: 2),
+//         ),
+//       );
+//     }
     
-    return Stack(
-      children: [
-        Center(
-          child: AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
-          ),
-        ),
-        Center(
-          child: IconButton(
-            onPressed: () {
-              setState(() {
-                _controller.value.isPlaying
-                    ? _controller.pause()
-                    : _controller.play();
-              });
-            },
-            icon: Icon(
-              _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Colors.white,
-              size: 50,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  _formatDuration(_controller.value.position),
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                      overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                      activeTrackColor: Colors.white,
-                      inactiveTrackColor: Colors.white.withOpacity(0.3),
-                      thumbColor: Colors.white,
-                      overlayColor: Colors.white.withOpacity(0.2),
-                    ),
-                    child: Slider(
-                      value: _controller.value.position.inMilliseconds.toDouble(),
-                      min: 0,
-                      max: _controller.value.duration.inMilliseconds.toDouble(),
-                      onChanged: (value) {
-                        _controller.seekTo(Duration(milliseconds: value.round()));
-                      },
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  _formatDuration(_controller.value.duration),
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+//     return Stack(
+//       children: [
+//         Center(
+//           child: AspectRatio(
+//             aspectRatio: _controller.value.aspectRatio,
+//             child: VideoPlayer(_controller),
+//           ),
+//         ),
+//         Center(
+//           child: IconButton(
+//             onPressed: () {
+//               setState(() {
+//                 _controller.value.isPlaying
+//                     ? _controller.pause()
+//                     : _controller.play();
+//               });
+//             },
+//             icon: Icon(
+//               _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+//               color: Colors.white,
+//               size: 50,
+//             ),
+//           ),
+//         ),
+//         Positioned(
+//           bottom: 0,
+//           left: 0,
+//           right: 0,
+//           child: Container(
+//             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+//             decoration: BoxDecoration(
+//               gradient: LinearGradient(
+//                 begin: Alignment.bottomCenter,
+//                 end: Alignment.topCenter,
+//                 colors: [
+//                   Colors.black.withOpacity(0.8),
+//                   Colors.transparent,
+//                 ],
+//               ),
+//             ),
+//             child: Row(
+//               children: [
+//                 Text(
+//                   _formatDuration(_controller.value.position),
+//                   style: TextStyle(color: Colors.white, fontSize: 12),
+//                 ),
+//                 SizedBox(width: 8),
+//                 Expanded(
+//                   child: SliderTheme(
+//                     data: SliderTheme.of(context).copyWith(
+//                       trackHeight: 2,
+//                       thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+//                       overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+//                       activeTrackColor: Colors.white,
+//                       inactiveTrackColor: Colors.white.withOpacity(0.3),
+//                       thumbColor: Colors.white,
+//                       overlayColor: Colors.white.withOpacity(0.2),
+//                     ),
+//                     child: Slider(
+//                       value: _controller.value.position.inMilliseconds.toDouble(),
+//                       min: 0,
+//                       max: _controller.value.duration.inMilliseconds.toDouble(),
+//                       onChanged: (value) {
+//                         _controller.seekTo(Duration(milliseconds: value.round()));
+//                       },
+//                     ),
+//                   ),
+//                 ),
+//                 SizedBox(width: 8),
+//                 Text(
+//                   _formatDuration(_controller.value.duration),
+//                   style: TextStyle(color: Colors.white, fontSize: 12),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+//       ],
+//     );
+//   }
   
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
-  }
-}
+//   String _formatDuration(Duration duration) {
+//     String twoDigits(int n) => n.toString().padLeft(2, "0");
+//     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+//     String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+//     return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+//   }
+// }

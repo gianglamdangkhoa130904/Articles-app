@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:final_project/default/default.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -25,6 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   DateTime? _selectedDate;
   File? _avatarFile;
   bool _loading = false;
+  bool _acceptTerms = false; // Added checkbox state
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -91,6 +93,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Lỗi'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              child: Text('Đóng'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _launchURL(String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
+      
+      // Thử launch với các mode khác nhau
+      bool launched = false;
+      
+      // Thử external application trước
+      if (await canLaunchUrl(uri)) {
+        launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      
+      // Nếu không được, thử platform default
+      if (!launched && await canLaunchUrl(uri)) {
+        launched = await launchUrl(
+          uri,
+          mode: LaunchMode.platformDefault,
+        );
+      }
+      
+      // Nếu vẫn không được, thử external non-browser
+      if (!launched && await canLaunchUrl(uri)) {
+        launched = await launchUrl(uri);
+      }
+      
+      if (!launched) {
+        _showErrorDialog('Không thể mở liên kết: $url\nVui lòng kiểm tra lại URL hoặc cài đặt trình duyệt.');
+      }
+      
+    } catch (e) {
+      print('Error launching URL: $e');
+      _showErrorDialog('Đã xảy ra lỗi khi mở liên kết\nLỗi: ${e.toString()}');
+    }
+  }
+
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -108,6 +168,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     
     if (!_isOver18(_selectedDate!)) {
       _showSnackBar('Người dùng đăng ký phải có độ tuổi từ 18 tuổi trở lên', isError: true);
+      return;
+    }
+
+    if (!_acceptTerms) {
+      _showSnackBar('Vui lòng chấp nhận điều khoản sử dụng và chính sách bảo mật', isError: true);
       return;
     }
 
@@ -131,25 +196,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       var avatarResponse = json.decode(responseData);
       
       if (response.statusCode == 200) {
-        // Register user
-        var registerResponse = await http.post(
-          Uri.parse('https://dhkptsocial.onrender.com/users'),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'username': _usernameController.text,
-            'password': _passwordController.text,
-            'name': _nameController.text,
-            'dob': _selectedDate!.toIso8601String(),
-            'email': _emailController.text,
-            'avatar': avatarResponse['file']['_id'],
-          }),
-        );
-        
-        if (registerResponse.statusCode == 200) {
+        try{
+            var registerResponse = await http.post(
+            Uri.parse('https://dhkptsocial.onrender.com/users'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'username': _usernameController.text,
+              'password': _passwordController.text,
+              'name': _nameController.text,
+              'dob': _selectedDate!.toIso8601String(),
+              'email': _emailController.text,
+              'avatar': avatarResponse['file']['_id'],
+            }),
+          );
           _showSnackBar('Sign up successfully');
-          Navigator.pushReplacementNamed(context, '/login');
-        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LoginPage(),
+            ),
+          );
+        } 
+        catch(e){
           _showSnackBar('Registration failed', isError: true);
+          print(e);
         }
       } else {
         _showSnackBar('Avatar upload failed', isError: true);
@@ -168,19 +238,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorBG.withOpacity(0.1),
-              Colors.pink.withOpacity(0.05),
-              Colors.blue.withOpacity(0.1),
-            ],
-          ),
+          color: Colors.white
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
             child: Column(
               children: [
                 // Header
@@ -211,13 +273,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: colorBG,
                         blurRadius: 20,
                         offset: Offset(0, 10),
                       ),
                     ],
                   ),
-                  padding: EdgeInsets.all(24),
+                  padding: EdgeInsets.all(16),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -395,6 +457,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             }
                             return null;
                           },
+                        ),
+                        SizedBox(height: 24),
+
+                        // Terms and Privacy Policy Checkbox
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Checkbox(
+                                value: _acceptTerms,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _acceptTerms = value ?? false;
+                                  });
+                                },
+                                activeColor: colorBG,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[700],
+                                        height: 1.4,
+                                      ),
+                                      children: [
+                                        TextSpan(text: 'Tôi đồng ý với '),
+                                        WidgetSpan(
+                                          child: GestureDetector(
+                                            onTap: () => _launchURL('https://dhkptsocial.netlify.app/use-policy'),
+                                            child: Text(
+                                              'Điều khoản sử dụng',
+                                              style: TextStyle(
+                                                color: colorBG,
+                                                decoration: TextDecoration.underline,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        TextSpan(text: ' và '),
+                                        WidgetSpan(
+                                          child: GestureDetector(
+                                            onTap: () => _launchURL('https://www.termsfeed.com/live/cfb3ff99-3d3d-4502-bc9a-2da96761b2b6'),
+                                            child: Text(
+                                              'Chính sách bảo mật',
+                                              style: TextStyle(
+                                                color: colorBG,
+                                                decoration: TextDecoration.underline,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        TextSpan(text: ' của ứng dụng.'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         SizedBox(height: 24),
 

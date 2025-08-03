@@ -428,7 +428,7 @@ class _PostScreenState extends State<PostScreen> {
   }
   @override
   Widget build(BuildContext context) {
-    return articleList.length != 0 ? (
+    return articleList.isNotEmpty ? (
       ListView.builder(
         padding: const EdgeInsets.all(4),
         itemCount: articleList.length,
@@ -450,7 +450,7 @@ class _PostScreenState extends State<PostScreen> {
               );
         }
       )
-    ): (
+    ) : (
       FutureBuilder<List<FullArticle>>(
         future: _futureArticles,
         builder: (context, snapshot) {

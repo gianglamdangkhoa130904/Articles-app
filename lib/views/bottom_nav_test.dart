@@ -1,10 +1,11 @@
 import 'package:final_project/default/default.dart';
-import 'package:final_project/views/chat_page.dart';
+import 'package:final_project/views/chat_list_page.dart';
 import 'package:final_project/views/create_post_page.dart';
 import 'package:final_project/views/home_page.dart';
+import 'package:final_project/views/infor/user_profile_page.dart';
 import 'package:final_project/views/notification_page.dart';
-import 'package:final_project/views/user_infor_page.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NavigationTest extends StatelessWidget {
   @override
@@ -21,10 +22,24 @@ class RightBottomVerticalNav extends StatefulWidget  {
 class _RightBottomVerticalNavState extends State<RightBottomVerticalNav> with TickerProviderStateMixin {
   int _selectedIndex = 3;
   bool _isExpanded = false;
+  String? customerId;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+     _loadCustomerId();
+  }
+  Future<void> _loadCustomerId() async {
+    final prefs = await SharedPreferences.getInstance();
+    customerId = prefs.getString('customerId');
+    setState(() {
+      customerId = prefs.getString('customerId');
+    });
+  }
   
-  final List<Widget> _views = [
-    UserInforPage(),
-    ChatPage(),
+  List<Widget> get  _views => [
+    UserProfilePage(userId: customerId ?? ''),
+    ChatListPage(),
     NotificationPage(),
     HomePage(),
   ];

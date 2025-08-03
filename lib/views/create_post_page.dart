@@ -23,6 +23,72 @@ class _CreatePostPageState extends State<CreatePostPage> {
   bool isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
+  // Hàm chọn nhiều ảnh/video cùng lúc
+  Future<void> pickMultipleMedia() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: Icon(Icons.photo_library),
+                title: Text('Chọn nhiều ảnh'),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickMultipleImages();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.image),
+                title: Text('Chọn 1 ảnh'),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickMedia(ImageSource.gallery, isVideo: false);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.videocam),
+                title: Text('Chọn video'),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickMedia(ImageSource.gallery, isVideo: true);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.camera_alt),
+                title: Text('Chụp ảnh'),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickMedia(ImageSource.camera, isVideo: false);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.videocam),
+                title: Text('Quay video'),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickMedia(ImageSource.camera, isVideo: true);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Chọn nhiều ảnh cùng lúc
+  Future<void> pickMultipleImages() async {
+    final List<XFile> pickedFiles = await _picker.pickMultipleMedia();
+    
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _mediaFiles.addAll(pickedFiles);
+      });
+    }
+  }
+
   Future<void> pickMedia(ImageSource source, {required bool isVideo}) async {
     final XFile? pickedFile = await (isVideo
         ? _picker.pickVideo(source: source)
@@ -33,6 +99,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
         _mediaFiles.add(pickedFile);
       });
     }
+  }
+
+  // Xóa media đã chọn
+  void removeMedia(int index) {
+    setState(() {
+      _mediaFiles.removeAt(index);
+    });
   }
 
   Future<void> handleUpload() async {
@@ -56,7 +129,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
 
     setState(() => isLoading = true);
-
 
     final postData = {
       "descriptionPost": description,
@@ -95,7 +167,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
         );
       }
 
-      _showSnackbar('Đăng bài thành công');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng bài thành công'), backgroundColor: Colors.green,));
       _descriptionController.clear();
       setState(() => _mediaFiles.clear());
     } catch (e) {
@@ -107,21 +179,135 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red,));
   }
 
-  Widget buildMediaPreview(XFile file) {
-    if (file.mimeType?.startsWith('video') == true) {
-      return VideoPreview(file: file);
-    } else {
-      return Image.file(File(file.path), height: 120, fit: BoxFit.cover);
-    }
+  Widget buildMediaPreview(XFile file, int index) {
+    // Kiểm tra loại file an toàn hơn
+    bool isVideo = _isVideoFile(file);
+    
+    return Stack(
+      children: [
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: isVideo
+                ? VideoPreview(file: file)
+                : _buildImagePreview(file),
+          ),
+        ),
+        // Nút xóa
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: () => removeMedia(index),
+            child: Container(
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+          ),
+        ),
+        // Hiển thị icon video nếu là video
+        if (isVideo)
+          Positioned(
+            bottom: 4,
+            left: 4,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.videocam,
+                    color: Colors.white,
+                    size: 12,
+                  ),
+                  SizedBox(width: 2),
+                  Text(
+                    'VIDEO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Hàm kiểm tra xem file có phải video không
+  bool _isVideoFile(XFile file) {
+    // Kiểm tra extension
+    final extension = file.path.toLowerCase().split('.').last;
+    final videoExtensions = ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm', 'flv'];
+    
+    // Kiểm tra MIME type nếu có
+    final mimeType = file.mimeType?.toLowerCase() ?? '';
+    
+    return videoExtensions.contains(extension) || mimeType.startsWith('video/');
+  }
+
+  // Hàm hiển thị ảnh với error handling
+  Widget _buildImagePreview(XFile file) {
+    return Image.file(
+      File(file.path),
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        print('Error loading image: $error');
+        return Container(
+          color: Colors.grey.shade200,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 32,
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Lỗi tải ảnh',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.red,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.white,
         appBar: PreferredSize(preferredSize: Size.fromHeight(60), 
         child: Container(
@@ -130,12 +316,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black38, // Màu bóng
-                blurRadius: 10,        // Độ mờ (càng lớn, càng mềm)
-                spreadRadius: 5,       // Độ lan rộng của bóng
-                offset: Offset(0, 1),  // Dịch chuyển bóng theo x,y
+                color: Colors.black38,
+                blurRadius: 10,
+                spreadRadius: 5,
+                offset: Offset(0, 1),
               ),
-              
             ],
           ),
           child: Row(
@@ -153,53 +338,121 @@ class _CreatePostPageState extends State<CreatePostPage> {
           )
         ),
         body: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 16),
           child: Column(
             children: [
+              Text('Đăng bài', style: TextStyle(color: colorBG, fontSize: 26, fontWeight: FontWeight.bold),),
+              SizedBox(height: 16,),
               TextField(
                 controller: _descriptionController,
                 maxLength: 200,
+                maxLines: 3,
                 decoration: InputDecoration(
                   labelText: "Mô tả bài viết",
                   border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.image),
-                    label: const Text("Chọn ảnh"),
-                    onPressed: () => pickMedia(ImageSource.gallery, isVideo: false),
+              const SizedBox(height: 16),
+              
+              // Nút chọn media duy nhất
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: const Text("Thêm ảnh/video"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorBG,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  const SizedBox(width: 10),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.videocam),
-                    label: const Text("Chọn video"),
-                    onPressed: () => pickMedia(ImageSource.gallery, isVideo: true),
-                  ),
-                ],
+                  onPressed: pickMultipleMedia,
+                ),
               ),
-              const SizedBox(height: 10),
+              
+              const SizedBox(height: 16),
+              
+              // Hiển thị số lượng media đã chọn
+              if (_mediaFiles.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Đã chọn ${_mediaFiles.length} file',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              
+              const SizedBox(height: 8),
+              
+              // Preview media files
               Expanded(
                 child: _mediaFiles.isEmpty
-                    ? const Text("Chưa chọn ảnh hoặc video")
-                    : ListView.separated(
-                        scrollDirection: Axis.horizontal,
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.image_outlined,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              "Chưa chọn ảnh hoặc video",
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
                         itemCount: _mediaFiles.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
                         itemBuilder: (context, index) {
-                          return buildMediaPreview(_mediaFiles[index]);
+                          return buildMediaPreview(_mediaFiles[index], index);
                         },
                       ),
               ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                icon: isLoading
-                    ? const CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                    : const Icon(Icons.cloud_upload),
-                label: const Text("Đăng bài"),
-                onPressed: isLoading ? null : handleUpload,
+              
+              const SizedBox(height: 16),
+              
+              // Nút đăng bài
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: isLoading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2, 
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.cloud_upload),
+                  label: Text(isLoading ? "Đang đăng..." : "Đăng tải"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorBG,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: isLoading ? null : handleUpload,
+                ),
               ),
             ],
           ),
@@ -220,6 +473,7 @@ class VideoPreview extends StatefulWidget {
 
 class _VideoPreviewState extends State<VideoPreview> {
   late VideoPlayerController _controller;
+  bool _isPlaying = false;
 
   @override
   void initState() {
@@ -227,7 +481,6 @@ class _VideoPreviewState extends State<VideoPreview> {
       ..initialize().then((_) {
         setState(() {});
         _controller.setLooping(true);
-        _controller.play();
       });
     super.initState();
   }
@@ -238,17 +491,103 @@ class _VideoPreviewState extends State<VideoPreview> {
     super.dispose();
   }
 
+  void _togglePlayPause() {
+    setState(() {
+      if (_controller.value.isPlaying) {
+        _controller.pause();
+        _isPlaying = false;
+      } else {
+        _controller.play();
+        _isPlaying = true;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return _controller.value.isInitialized
-        ? SizedBox(
-            width: 120,
-            height: 120,
-            child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              child: VideoPlayer(_controller),
+        ? GestureDetector(
+            onTap: _togglePlayPause,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AspectRatio(
+                  aspectRatio: _controller.value.aspectRatio,
+                  child: VideoPlayer(_controller),
+                ),
+                // Overlay play/pause button
+                if (!_isPlaying)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                // Video duration overlay
+                Positioned(
+                  bottom: 4,
+                  right: 4,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _formatDuration(_controller.value.duration),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           )
-        : const CircularProgressIndicator();
+        : Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.grey.shade400,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Đang tải...',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    
+    if (duration.inHours > 0) {
+      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    } else {
+      return "$twoDigitMinutes:$twoDigitSeconds";
+    }
   }
 }
